@@ -173,6 +173,7 @@
     "commander": "^15.0.0",
     "detect-libc": "^2.1.2",
     "diff": "^9.0.0",
+    "fast-uri": "4.1.2",
     "js-yaml": "^5.0.0",
     "jsonc-parser": "^3.3.1",
     "picocolors": "^1.1.1",
