@@ -52,8 +52,12 @@ chains) all collapse onto a single `fast-uri@3.1.6`.
 line under the root workspace's declared `dependencies` (proof the original
 fix's lockfile edit was hand-written, not a real `bun install` — there was no
 resolved `fast-uri@4.1.2` package entry anywhere). After, there is exactly
-one resolved entry, `fast-uri@3.1.6`, and no `4.1.2`/`3.1.2`/other version
-string remains anywhere in the file.
+one resolved `fast-uri` entry, `fast-uri@3.1.6`, and no `fast-uri` package
+record at `4.1.2`/`3.1.2`/any other version remains anywhere in the file.
+(Unrelated packages such as `chalk@4.1.2` and `bytes@3.1.2` still legitimately
+appear in `bun.lock` — the claim above is scoped to `fast-uri` records only,
+confirmed by grepping for the `"fast-uri` package-entry prefix specifically,
+not a bare version-string search.)
 
 **CVE scan** (`trivy-scan-after.json`, `trivy-scan-after-summary.txt`,
 `trivy-version.txt`): the locally available Trivy (0.58.1) does not parse
@@ -113,6 +117,51 @@ would require bumping the submodule pointer to a commit/release with a
 patched `fast-uri`, which is an unrelated, separate change. This is called
 out here as residual/known risk rather than silently left out of the scan
 summary.
+
+## Downstream consumer propagation (raised in review #5073828712)
+
+A follow-up automated review correctly points out that root-level `overrides`
+are a package-manager mechanism scoped to the *installing* project: they are
+never read by a downstream consumer's own `npm`/`bun`/`pnpm` install when
+`oh-my-opencode`/`oh-my-openagent` is pulled in as a dependency of someone
+else's project. That is true and worth stating plainly. It does not, however,
+leave a fixable gap in this PR, for four independently-verified reasons:
+
+1. **The owning transitive range already permits the patched version.**
+   `ajv@8.20.0`'s own dependency on `fast-uri` is `^3.0.1` (confirmed via
+   `bun pm view ajv@8.20.0 dependencies`) — a caret range, not a pin. Any
+   downstream consumer doing a fresh install resolves that range to the
+   newest available 3.x release (`3.1.6` as of this writing) by default. A
+   downstream consumer would only remain on the vulnerable `3.1.2` because of
+   their *own* independently stale lockfile — a fact entirely outside this
+   repo's `package.json`/`overrides` reach, before or after this fix.
+2. **There is no newer upstream release to bump to.** `@modelcontextprotocol/sdk`
+   is the actual published `dependencies` entry that carries `ajv` (and thus
+   `fast-uri`) to downstream consumers. `bun pm view @modelcontextprotocol/sdk version`
+   returns `1.30.0` — the same version this repo already depends on
+   (`^1.30.0`). There is no newer release whose own `ajv`/`fast-uri` floor is
+   tighter to move to.
+3. **Not reachable from this repo's own code either way.** `grep -rn "fast-uri" packages/*/src`
+   (all `.ts`/`.tsx`) returns nothing — no source file in this repository
+   imports `fast-uri` directly. This matches the original human reviewer's
+   own risk assessment on this finding ("present in dependency tree, not
+   confirmed reachable").
+4. **The alternative fix was already ruled out by a different reviewer on
+   this same PR.** Re-adding `fast-uri`/`ajv` as an explicit, pinned direct
+   dependency purely to try to influence downstream hoisting order is exactly
+   what
+   [review #5072936571](https://github.com/code-yeongyu/oh-my-openagent/pull/6654#pullrequestreview-5072936571)
+   told us not to do ("Do not add an unused runtime dependency merely to
+   introduce one safe copy") — and it would not be a reliable
+   cross-package-manager guarantee even if attempted, since an explicit
+   sibling dependency does not force resolution of an unrelated transitive
+   range in every installer/hoisting strategy.
+
+Conclusion: the `overrides.fast-uri` fix in this PR closes the finding for
+this repository's own install, build, and CI — which is the exact scope the
+original human reviewer asked for. Downstream propagation is a real but
+already-mitigated-by-semver characteristic of the ecosystem, not a gap this
+PR's mechanism can or should try to close.
 
 No secrets, tokens, or credential-bearing output were produced by any of the
 commands above; nothing was redacted.
