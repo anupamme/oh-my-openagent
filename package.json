@@ -173,7 +173,6 @@
     "commander": "^15.0.0",
     "detect-libc": "^2.1.2",
     "diff": "^9.0.0",
-    "fast-uri": "4.1.2",
     "js-yaml": "^5.0.0",
     "jsonc-parser": "^3.3.1",
     "picocolors": "^1.1.1",
@@ -244,7 +243,7 @@
     "hono": "^4.12.18",
     "@hono/node-server": "^1.19.13",
     "express-rate-limit": "^8.5.1",
-    "fast-uri": "^3.1.2",
+    "fast-uri": "3.1.6",
     "path-to-regexp": "^8.4.2",
     "@types/node": "26.2.0"
   },
